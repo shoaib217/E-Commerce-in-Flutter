@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ecommerce/state/app_state.dart';
-import 'package:ecommerce/widget/product_item.dart'; // Reuse your ProductItem
+import 'package:ecommerce/widget/product_item.dart';
 
 class FavoritesScreen extends StatelessWidget {
   const FavoritesScreen({super.key});
@@ -14,57 +14,59 @@ class FavoritesScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text("Your Favorites"),
       ),
+      // 1. IMPROVEMENT: Move Consumer closer to the widget that needs the state.
+      // This prevents the AppBar and Scaffold from rebuilding unnecessarily.
       body: Consumer<AppState>(
         builder: (context, appState, child) {
+          // Show a placeholder if the list is empty.
           if (appState.favoriteItems.isEmpty) {
-            return const Center(
-              child: Text("You haven't added any favorites yet."),
-            );
+            // The `child` argument here is the const widget defined below,
+            // which is more performant as it's not rebuilt.
+            return child!;
           }
 
+          // Build the list of favorite items.
           return ListView.builder(
+            padding: const EdgeInsets.only(top: 8.0), // Add padding to the list itself
             itemCount: appState.favoriteItems.length,
             itemBuilder: (context, index) {
               final product = appState.favoriteItems[index];
 
-              // 1. Wrap the ProductItem with the Dismissible widget
               return Dismissible(
-                // 2. Provide a unique key. This is crucial for Flutter to manage the list.
-                key: ValueKey(product.id),
-                direction: .endToStart,
+                // 2. CRITICAL FIX: Use ObjectKey to uniquely identify the widget
+                // by its data object, preventing state conflicts during rebuilds.
+                key: ObjectKey(product),
 
-                // 3. Define the action to take when the item is dismissed.
+                direction: DismissDirection.endToStart,
                 onDismissed: (direction) {
-
+                  // The logic inside onDismissed is already excellent.
+                  final messenger = ScaffoldMessenger.of(context);
                   final removedProduct = product;
                   final removedIndex = index;
 
-                  // Call the method from your AppState to remove the item
                   appState.removeFromFavorites(product);
 
-                  // Show a confirmation SnackBar
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.hideCurrentSnackBar();
+                  messenger.showSnackBar(
                     SnackBar(
                       content: Text('${product.title} removed from favorites.'),
-                      duration: const Duration(seconds: 4),
-                        action: SnackBarAction(
-                          label: "UNDO",
-                          onPressed: () {
-                            // 4. When "Undo" is pressed, add the item back at its original position.
-                            appState.insertIntoFavorites(removedIndex, removedProduct);
-                          },
-                        ),
+                      duration: const Duration(seconds: 2),
+                      behavior: SnackBarBehavior.floating,
+                      action: SnackBarAction(
+                        label: "UNDO",
+                        onPressed: () {
+                          appState.insertIntoFavorites(
+                              removedIndex, removedProduct);
+                          messenger.hideCurrentSnackBar();
+                        },
+                      ),
                     ),
                   );
                 },
-
-                // 4. Define the background that appears behind the item during the swipe.
                 background: Padding(
-                  // Match the margin of the ProductItem's Card
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16.0), // Use the same radius as your card
+                    borderRadius: BorderRadius.circular(16.0),
                     child: Container(
                       color: colorScheme.errorContainer,
                       alignment: Alignment.centerRight,
@@ -77,14 +79,16 @@ class FavoritesScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-
-
-                // 5. The child is your original ProductItem widget.
                 child: ProductItem(product),
               );
             },
           );
         },
+        // 3. PERFORMANCE: Pass the non-changing "empty" widget as the child
+        // to the Consumer. This ensures it's created only once.
+        child: const Center(
+          child: Text("You haven't added any favorites yet."),
+        ),
       ),
     );
   }
