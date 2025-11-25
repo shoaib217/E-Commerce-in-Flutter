@@ -12,7 +12,7 @@ class ProductItem extends StatelessWidget {
 
   // --- 1. Discount Badge Helper ---
   Widget _buildDiscountBadge(BuildContext context, double discount) {
-    if (discount <= 0) return const SizedBox.shrink();
+    if (discount.toInt() <= 0) return const SizedBox.shrink();
     return Positioned(
       top: 0,
       right: 0,
