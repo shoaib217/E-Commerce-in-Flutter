@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:ecommerce/state/app_state.dart';
 import 'package:ecommerce/widget/product_item.dart';
 
+import '../widget/product_list.dart';
+
 class FavoritesScreen extends StatelessWidget {
   const FavoritesScreen({super.key});
 
@@ -79,7 +81,7 @@ class FavoritesScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                child: ProductItem(product),
+                child: ProductItem(product,ViewType.list),
               );
             },
           );
