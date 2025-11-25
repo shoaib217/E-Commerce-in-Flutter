@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ecommerce/http_helper.dart';
 import 'package:ecommerce/widget/product_list.dart';
 import 'package:ecommerce/data/products.dart';
+import 'package:flutter/services.dart';
 
 import '../main.dart';
 
@@ -30,16 +31,16 @@ class _ProductScreenState extends State<ProductScreen> {
   Future<bool> _showExitDialog() async {
     return await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text("Alert!"),
         content: const Text("Are you sure you want to exit?"),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text("No"),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => SystemNavigator.pop(),
             child: const Text("Yes"),
           ),
         ],
