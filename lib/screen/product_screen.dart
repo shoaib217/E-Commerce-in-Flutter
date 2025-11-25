@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:ecommerce/http_helper.dart';
 import 'package:ecommerce/widget/product_list.dart';
-import 'package:ecommerce/main.dart';
 import 'package:ecommerce/data/products.dart';
 
-// 1. Converted to a StatefulWidget
+import '../main.dart';
+
 class ProductScreen extends StatefulWidget {
   const ProductScreen({super.key});
 
@@ -13,31 +13,21 @@ class ProductScreen extends StatefulWidget {
 }
 
 class _ProductScreenState extends State<ProductScreen> {
-  // 2. Hold the Future in a state variable
   late Future<Products> _productsFuture;
 
   @override
   void initState() {
     super.initState();
-    // 3. Fetch data only once when the widget is created
     _productsFuture = fetchProducts();
   }
 
-  // 4. Create a method to re-run the fetch operation
   void _retryFetch() {
     setState(() {
-      // Assigning a new Future will cause the FutureBuilder to re-evaluate
       _productsFuture = fetchProducts();
     });
   }
 
-  // Helper to show a snack bar for errors/messages
-  void _showSnackBar(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  // Dialog shown when the user tries to exit
-  Future<bool> _showExitConfirmationDialog() async {
+  Future<bool> _showExitDialog() async {
     return await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -45,11 +35,11 @@ class _ProductScreenState extends State<ProductScreen> {
         content: const Text("Are you sure you want to exit?"),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text("No"),
           ),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
+            onPressed: () => Navigator.pop(context, true),
             child: const Text("Yes"),
           ),
         ],
@@ -60,65 +50,61 @@ class _ProductScreenState extends State<ProductScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope<Object?>(
+    return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (bool didPop, Object? result) async {
+      onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        final bool shouldPop = await _showExitConfirmationDialog();
-        if (context.mounted && shouldPop) {
-          Navigator.pop(context);
-        }
+        final shouldPop = await _showExitDialog();
+        if (context.mounted && shouldPop) Navigator.pop(context);
       },
-      child: Center(
-        child: FutureBuilder<Products>(
-          // 5. Use the state variable for the future
-          future: _productsFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const CircularProgressIndicator();
-            }
+      child: FutureBuilder<Products>(
+        future: _productsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
 
-            // --- IMPROVEMENT WITH RETRY BUTTON ---
-            if (snapshot.hasError) {
-              // Return a user-friendly error UI with a retry button
-              return Scaffold(
-                body: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: Text(
-                        "Failed to load products: ${snapshot.error}",
+          if (snapshot.hasError) {
+            return Scaffold(
+              body: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        "Failed to load products:\n${snapshot.error}",
                         textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyLarge,
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _retryFetch,
-                      child: const Text('Retry'),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _retryFetch,
+                        child: const Text("Retry"),
+                      ),
+                    ],
+                  ),
                 ),
-              );
-            }
-            // --- END OF IMPROVEMENT ---
+              ),
+            );
+          }
 
-            if (snapshot.hasData) {
-              var products = snapshot.data?.products ?? [];
-              if (products.isEmpty) {
-                return const Text("No products found");
-              }
-              // Return the main content widget which contains the Scaffold
-              return ProductList(
-                products: products,
-                category: groupBy(products, (product) => product.category),
-              );
-            }
+          final products = snapshot.data?.products ?? [];
+          if (products.isEmpty) {
+            return const Scaffold(
+              body: Center(child: Text("No products found")),
+            );
+          }
 
-            return const Text("No products found");
-          },
-        ),
+          return ProductList(
+            products: products,
+            category: groupBy(
+              products,
+                  (product) => product.category,
+            ),
+          );
+        },
       ),
     );
   }

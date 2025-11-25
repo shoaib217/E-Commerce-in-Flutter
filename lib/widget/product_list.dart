@@ -11,87 +11,63 @@ class ProductList extends StatefulWidget {
   final List<Product> products;
   final Map<String, List<Product>> category;
 
-  const ProductList({required this.products, required this.category, super.key});
+  const ProductList({
+    required this.products,
+    required this.category,
+    super.key,
+  });
 
   @override
   State<ProductList> createState() => _ProductListState();
 }
 
 class _ProductListState extends State<ProductList> {
-  late List<Product> _filteredProducts;
+  late List<Product> _filtered;
   String _selectedCategory = "All";
 
   @override
   void initState() {
     super.initState();
-    _filteredProducts = widget.products;
+    _filtered = widget.products;
   }
 
   @override
-  void didUpdateWidget(covariant ProductList oldWidget) {
+  void didUpdateWidget(ProductList oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Re-filter products if the parent widget provides a new list
     if (oldWidget.products != widget.products) {
-      _filterProducts(_selectedCategory);
+      _applyFilter(_selectedCategory);
     }
   }
 
-  // --- LOGIC METHODS ---
-
-  void _filterProducts(String categoryName) {
+  void _applyFilter(String category) {
     setState(() {
-      _selectedCategory = categoryName;
-      if (categoryName == "All") {
-        _filteredProducts = widget.products;
-      } else {
-        _filteredProducts = widget.products
-            .where((product) => product.category == categoryName)
-            .toList();
-      }
+      _selectedCategory = category;
+      _filtered = category == "All"
+          ? widget.products
+          : widget.products
+          .where((p) => p.category == category)
+          .toList();
     });
   }
 
-  void _showConfirmationSnackBar(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
+  void _showSnack(BuildContext context, String text) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(text),
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
-  // --- HELPER WIDGETS ---
-
-  PopupMenuButton<String> _buildFilterMenu(TextTheme textTheme) {
-    return PopupMenuButton<String>(
-      icon: const Icon(Icons.filter_list),
-      tooltip: "Filter by Category",
-      onSelected: _filterProducts,
-      itemBuilder: (context) {
-        return [
-          PopupMenuItem(
-            value: "All",
-            child: Text("All", style: textTheme.bodyMedium),
-          ),
-          ...widget.category.keys.map((categoryName) {
-            return PopupMenuItem(
-              value: categoryName,
-              child: Text(categoryName, style: textTheme.bodyMedium),
-            );
-          }),
-        ];
-      },
-    );
-  }
-
-  Widget _buildSlidableAction({
-    required BuildContext context,
-    required String label,
-    required IconData icon,
+  // Slidable builder
+  Widget _action({
     required Color color,
     required Color onColor,
+    required IconData icon,
+    required String label,
     required VoidCallback onPressed,
   }) {
     return CustomSlidableAction(
@@ -126,105 +102,95 @@ class _ProductListState extends State<ProductList> {
     );
   }
 
-  // --- BUILD METHOD ---
-
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
 
     return Consumer<AppState>(
-      builder: (context, appState, child) => Scaffold(
-        backgroundColor: colorScheme.surface,
-        appBar: AppBar(
-          title: Text("Products", style: textTheme.titleLarge),
-          centerTitle: false,
-          elevation: 0,
-          scrolledUnderElevation: 4,
-          actions: [
-            // Favorites Button
-            IconButton(
-              tooltip: 'Favorites',
-              icon: Badge(
-                isLabelVisible: appState.favoriteItems.isNotEmpty,
-                label: Text('${appState.favoriteItems.length}'),
-                child: const Icon(Icons.favorite_border),
-              ),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const FavoritesScreen()),
-              ),
-            ),
-            // Cart Button
-            IconButton(
-              tooltip: 'Cart',
-              icon: Badge(
-                isLabelVisible: appState.cartItems.isNotEmpty,
-                label: Text('${appState.cartItems.length}'),
-                child: const Icon(Icons.shopping_cart_outlined),
-              ),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CartScreen()),
-              ),
-            ),
-            // Filter Menu
-            _buildFilterMenu(textTheme),
-          ],
-        ),
-        body: _filteredProducts.isEmpty
-            ? Center(
-          child: Text("No products found", style: textTheme.bodyLarge),
-        )
-            : ListView.builder(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          itemCount: _filteredProducts.length,
-          itemBuilder: (context, index) {
-            final product = _filteredProducts[index];
-
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Slidable(
-                key: ValueKey(product.id),
-                endActionPane: ActionPane(
-                  motion: const ScrollMotion(),
-                  extentRatio: 0.5,
-                  children: [
-                    // Favorite Slidable Action
-                    _buildSlidableAction(
-                      context: context,
-                      label: 'Favorite',
-                      icon: Icons.favorite,
-                      color: colorScheme.secondaryContainer,
-                      onColor: colorScheme.onSecondaryContainer,
-                      onPressed: () {
-                        appState.addToFavorites(product);
-                        _showConfirmationSnackBar(
-                            context, '${product.title} added to Favorites!');
-                      },
-                    ),
-                    const SizedBox(width: 4),
-                    // Cart Slidable Action
-                    _buildSlidableAction(
-                      context: context,
-                      label: 'Cart',
-                      icon: Icons.shopping_cart,
-                      color: colorScheme.primary,
-                      onColor: colorScheme.onPrimary,
-                      onPressed: () {
-                        appState.addToCart(product);
-                        _showConfirmationSnackBar(
-                            context, '${product.title} added to Cart!');
-                      },
-                    ),
-                  ],
+      builder: (context, appState, _) {
+        return Scaffold(
+          appBar: AppBar(
+            title: Text("Products", style: theme.textTheme.titleLarge),
+            actions: [
+              IconButton(
+                icon: Badge(
+                  isLabelVisible: appState.favoriteItems.isNotEmpty,
+                  label: Text('${appState.favoriteItems.length}'),
+                  child: const Icon(Icons.favorite_border),
                 ),
-                child: ProductItem(product),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const FavoritesScreen()),
+                ),
               ),
-            );
-          },
-        ),
-      ),
+              IconButton(
+                icon: Badge(
+                  isLabelVisible: appState.cartItems.isNotEmpty,
+                  label: Text('${appState.cartItems.length}'),
+                  child: const Icon(Icons.shopping_cart_outlined),
+                ),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CartScreen()),
+                ),
+              ),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.filter_list),
+                tooltip: "Filter by Category",
+                onSelected: _applyFilter,
+                itemBuilder: (_) => [
+                  const PopupMenuItem(value: "All", child: Text("All")),
+                  ...widget.category.keys.map(
+                        (c) => PopupMenuItem(value: c, child: Text(c)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          body: _filtered.isEmpty
+              ? Center(child: Text("No products found"))
+              : ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: _filtered.length,
+            itemBuilder: (_, index) {
+              final p = _filtered[index];
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Slidable(
+                  key: ValueKey(p.id),
+                  endActionPane: ActionPane(
+                    motion: const ScrollMotion(),
+                    extentRatio: 0.45,
+                    children: [
+                      _action(
+                        label: 'Favorite',
+                        icon: Icons.favorite,
+                        color: theme.colorScheme.secondaryContainer,
+                        onColor: theme.colorScheme.onSecondaryContainer,
+                        onPressed: () {
+                          appState.addToFavorites(p);
+                          _showSnack(context, '${p.title} added to Favorites!');
+                        },
+                      ),
+                      _action(
+                        label: 'Cart',
+                        icon: Icons.shopping_cart,
+                        color: theme.colorScheme.primary,
+                        onColor: theme.colorScheme.onPrimary,
+                        onPressed: () {
+                          appState.addToCart(p);
+                          _showSnack(context, '${p.title} added to Cart!');
+                        },
+                      ),
+                    ],
+                  ),
+                  child: ProductItem(p),
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }
